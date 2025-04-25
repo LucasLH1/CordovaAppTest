@@ -1,115 +1,102 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
 var app = {
-    // Application Constructor
+    currentImage: "",
+    notes: [],
+
     initialize: function () {
         document.addEventListener('deviceready', this.onDeviceReady.bind(this), false);
     },
 
-    // deviceready Event Handler
-    //
-    // Bind any cordova events here. Common events are:
-    // 'pause', 'resume', etc.
     onDeviceReady: function () {
-        this.receivedEvent('deviceready');
+        console.log("App ready");
+        this.notes = JSON.parse(localStorage.getItem("notes") || "[]");
+
+        const page = document.body.getAttribute("data-page");
+
+        switch (page) {
+            case "home":
+                this.initHomePage();
+                break;
+            case "add":
+                this.initAddPage();
+                break;
+        }
     },
 
-    // Update DOM on a Received Event
-    receivedEvent: function (id) {
-        var parentElement = document.getElementById(id);
-        var listeningElement = parentElement.querySelector('.listening');
-        var receivedElement = parentElement.querySelector('.received');
-        listeningElement.setAttribute('style', 'display:none;');
-        receivedElement.setAttribute('style', 'display:block;');
+    //Page d'accueil
+    initHomePage: function () {
+        const list = document.getElementById("notesList");
+        const btn = document.getElementById("addNoteBtn");
 
-        console.log('Received Event: ' + id);
+        btn.addEventListener("click", () => {
+            location.href = "add.html";
+        });
 
+        list.innerHTML = "";
 
+        this.notes.forEach(note => {
+            const li = document.createElement("li");
+            li.innerHTML = `
+                <strong>${note.date}</strong><br>
+                ${note.texte.substring(0, 30)}<br>
+                <img src="${note.image}" width="100"><br><br>
+            `;
+            list.appendChild(li);
+        });
+    },
 
-        let options = {
-            x: 0,
-            y: 0,
-            width: window.screen.width / 2,
-            height: window.screen.height / 2,
-            camera: CameraPreview.CAMERA_DIRECTION.BACK,
-            toBack: false,
-            tapPhoto: false,
-            tapFocus: false,
-            previewDrag: false,
-            storeToFile: true,
-            disableExifHeaderStripping: false
-        };
+    //Page ajout de note
+    initAddPage: function () {
+        const startBtn = document.getElementById("startCamera");
+        const captureBtn = document.getElementById("takePicture");
+        const preview = document.getElementById("preview");
 
-
-        let optionsVideo = {
-            cameraDirection: CameraPreview.CAMERA_DIRECTION.BACK,
-            width: window.screen.width / 2,
-            height: window.screen.height / 2,
-            quality: 60,
-            withFlash: false
-        }
-
-
-        var startCam = document.getElementById("startCam");
-        var stopCam = document.getElementById("stopCam");
-        var startRecordCam = document.getElementById("startRecordCam");
-        var stopRecordCam = document.getElementById("recordCam");
-        var flip = document.getElementById("flip");
-        startCam.addEventListener("click", () => {
-
-            CameraPreview.startCamera(options);
-        })
-
-        stopCam.addEventListener("click", () => {
-
-            CameraPreview.stopCamera();
-        })
-        stopRecordCam.addEventListener("click", () => {
-            CameraPreview.stopRecordVideo((fp1) => {
-                //your video path here
-                console.log(fp1);
-            }, (fp) => {
-
-                console.log(fp);
-            });
-        })
-
-        startRecordCam.addEventListener("click", () => {
-            //starting recording file
-            CameraPreview.startRecordVideo(optionsVideo, (s) => { console.log(s) }, (e) => {
-                console.log(e);
+        startBtn.addEventListener("click", () => {
+            CameraPreview.startCamera({
+                x: 0,
+                y: 0,
+                width: window.screen.width,
+                height: window.screen.height / 2,
+                camera: CameraPreview.CAMERA_DIRECTION.BACK,
+                toBack: false,
+                tapPhoto: false,
+                previewDrag: false,
+                storeToFile: true
             });
 
+            captureBtn.style.display = "inline-block";
+        });
 
-        })
+        captureBtn.addEventListener("click", () => {
+            CameraPreview.takePicture({ width: 800, height: 600, quality: 85 }, (result) => {
+                const imgSrc = 'data:image/jpeg;base64,' + result;
+                app.currentImage = imgSrc;
+                preview.src = imgSrc;
 
-        flip.addEventListener("click", () => {
-            //switch camera
-            CameraPreview.switchCamera((s) => { console.log(s) }, (e) => {
-                console.log(e);
+                CameraPreview.stopCamera();
+                captureBtn.style.display = "none";
             });
+        });
 
+        document.getElementById("saveNote").addEventListener("click", () => {
+            const text = document.getElementById("noteText").value.trim();
+            const date = new Date().toLocaleString();
 
-        })
+            if (!text || !app.currentImage) {
+                alert("Merci d'écrire une note et de prendre une photo.");
+                return;
+            }
 
+            const newNote = {
+                id: Date.now(),
+                texte: text,
+                image: app.currentImage,
+                date: date
+            };
 
-
+            this.notes.push(newNote);
+            localStorage.setItem("notes", JSON.stringify(this.notes));
+            location.href = "index.html";
+        });
     }
 };
 
